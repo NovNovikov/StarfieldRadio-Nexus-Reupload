@@ -63,6 +63,10 @@ public:
 
 	void Init()
 	{
+		srand(time(NULL));
+		randStart = rand() % (3600);
+		RadioStartTime = std::time(nullptr);
+
 		INFO("{} v{} - Initializing Starfield Radio Sound System -", Plugin::NAME, Plugin::Version);
 	
 		if (Stations.size() <= 0) {
@@ -72,7 +76,13 @@ public:
 
 		INFO("{} v{} - Starting Starfield Radio -", Plugin::NAME, Plugin::Version);
 
-		std::pair<std::string, std::string> StationInfo = GetStationInfo(Stations[0]);
+	
+
+		if (!Stations.empty()) {
+			StationIndex = rand() % Stations.size();
+		}
+
+		std::pair<std::string, std::string> StationInfo = GetStationInfo(Stations[StationIndex]);
 
 		if (StationInfo.second.contains("://"))
 		{
@@ -93,11 +103,34 @@ public:
 		if (AutoStart && Mode == 0) 
 		{
 			IsStarted = true;
-			mciSendString(L"play sfradio repeat", NULL, 0, NULL);
+			//mciSendString(L"play sfradio repeat", NULL, 0, NULL);
+			mciSendString(to_wstring(std::format("play sfradio from {} repeat", (randStart % getTrackLength()))).c_str(), NULL, 0, NULL);
+			Notification(std::format("当前播放进度：{}%%", std::floor((static_cast<float>(randStart % getTrackLength()) * 100 / getTrackLength()) * 10) / 10.0f));
+			//Notification(std::format("Play at: {}%%", std::floor((static_cast<float>(randStart % getTrackLength())*100 / getTrackLength()) * 10) / 10.0f));
 			mciSendString(L"setaudio sfradio volume to 0", NULL, 0, NULL);
 		}
 
-		Notification("Starfield Radio Initialized");
+		Notification("银河电台初始化完成");
+		//Notification("Starfield Radio Initialized");
+	}
+
+	int32_t getElapsedTimeInSec()
+	{
+		std::time_t currentTime = std::time(nullptr);
+		return static_cast<int>(currentTime - RadioStartTime);
+	}
+
+	int32_t getTrackLength()
+	{
+		std::wstring StatusBuffer;
+		StatusBuffer.reserve(128);
+
+		mciSendString(L"status sfradio length", StatusBuffer.data(), 128, NULL);
+
+		// Convert Length to int
+		int32_t TrackLength = std::stoi(StatusBuffer);
+		StatusBuffer.clear();
+		return TrackLength;
 	}
 
 	void SelectStation(int InStationIndex)
@@ -117,17 +150,26 @@ public:
 		{
 			std::wstring OpenLocalFile = to_wstring(std::format("open {} type mpegvideo alias sfradio", StationURL));
 			mciSendString(OpenLocalFile.c_str(), NULL, 0, NULL);
+			Notification("正在连接至银河电台网络。由于跨星际传输，通讯可能存在延迟，请稍等。");
+			//Notification("Connecting to Galactic Radio Network. Delay expected because of the inter-stellar communication.");
 		}
 		else
 		{
 			std::wstring OpenLocalFile = to_wstring(std::format("open \".\\Data\\SFSE\\Plugins\\StarfieldGalacticRadio\\tracks\\{}\" type mpegvideo alias sfradio", StationURL));
+			Notification("在当前设备上检测到本地媒体文件，现在进行播放。");
+			//Notification("Local media on your device found, playing right now.");
 			mciSendString(OpenLocalFile.c_str(), NULL, 0, NULL);
 		}
-				
+		
+		int32_t NewPosition = (getElapsedTimeInSec() % getTrackLength() + randStart) * 1000 % getTrackLength();
+
 		if (!StationInfo.first.empty())
 			Notification(std::format("On Air - {}", StationInfo.first));
 
-		mciSendString(L"play sfradio repeat", NULL, 0, NULL);
+		// mciSendString(L"play sfradio repeat", NULL, 0, NULL);
+		Notification(std::format("当前播放进度：{}%%", std::floor((static_cast<float>(NewPosition % getTrackLength()) * 100 / getTrackLength()) * 10) / 10.0f));
+		//Notification(std::format("Play at: {}%%", std::floor((static_cast<float>(NewPosition % getTrackLength()) * 100 / getTrackLength()) * 10) / 10.0f));
+		mciSendString(to_wstring(std::format("play sfradio from {} repeat", NewPosition)).c_str(), NULL, 0, NULL);
 
 		std::wstring v = to_wstring(std::format("setaudio sfradio volume to {}", (int)Volume));
 		mciSendString(v.c_str(), NULL, 0, NULL);
@@ -136,7 +178,7 @@ public:
 	void NextStation()
 	{
 		StationIndex = (StationIndex + 1) % Stations.size();
-
+		
 		SelectStation(StationIndex);
 	}
 
@@ -311,6 +353,8 @@ private:
 	bool  IsPlaying = false;
 
 	std::vector<std::string> Stations;
+	std::time_t RadioStartTime;
+	int32_t randStart;
 };
 
 const int    TimePerFrame = 50;
