@@ -97,9 +97,8 @@
 #include <vector>
 #include <version>
 
-// Clib
-#include "RE/Starfield.h"
-#include "SFSE/SFSE.h"
+#include <RE/Starfield.h>
+#include <SFSE/SFSE.h>
 
 // winnt
 #include <ShlObj_core.h>
@@ -118,3 +117,17 @@ using namespace REL::literals;
 // DKUtil
 #include "DKUtil/Hook.hpp"
 #include "DKUtil/Logger.hpp"
+
+
+//#include "nlohmann/json.hpp"
+//#include <RE/S/Script.h>
+#include <iostream>
+#include <shlobj.h>
+#include <string.h>
+#include <windows.h>
+
+//#include "Ini/Ini.h"
+
+
+//#include "CRC.h"
+//#include "BSTHashMap.h"
