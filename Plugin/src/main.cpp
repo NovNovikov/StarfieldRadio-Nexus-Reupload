@@ -45,6 +45,13 @@ std::string trimTrailingCommas(const std::string& str) {
     return result;
 }
 
+std::string trim(const std::string& str) {
+    size_t first = str.find_first_not_of(" \t");
+    if (first == std::string::npos) return "";
+    size_t last = str.find_last_not_of(" \t");
+    return str.substr(first, (last - first + 1));
+}
+
 // Function to trim all items in the playlist
 void trimPlaylist(std::vector<std::string>& playlist) {
     for (auto& song : playlist) {
@@ -100,6 +107,7 @@ void loadConfig(Config& config) {
     while (std::getline(configFile, line)) {
         std::istringstream lineStream(line);
         std::string key;
+		line = trim(line);
 
         if (line.find("AutoStartRadio") != std::string::npos) {
             bool value;
@@ -111,15 +119,30 @@ void loadConfig(Config& config) {
             lineStream >> key >> value;
             config.randomizeStartTime = value;
             INFO("RandomizeStartTime: {}", config.randomizeStartTime);
-        } else if (line.find("Playlist") != std::string::npos) {
-            config.playlist.clear();
-            while (std::getline(configFile, line) && line.find("]") == std::string::npos) {
-                if (!line.empty()) {
-                    line.erase(std::remove(line.begin(), line.end(), '"'), line.end()); // Remove quotes
-                    config.playlist.push_back(line);
-                    INFO("Playlist item: {}", line);
-                }
-            }
+        } else if (line.find("Playlist =") != std::string::npos) {
+			config.playlist.clear();  // Clear any existing entries
+
+			// Now read each playlist item until we find a line containing ']'
+			while (std::getline(configFile, line)) {
+				line = trim(line);  // Trim whitespace from line
+
+				size_t closingBracketPos = line.find("]");
+				if (closingBracketPos != std::string::npos) {
+					// If ']' is found, take everything before it and break the loop
+					line = line.substr(0, closingBracketPos);
+				}
+
+				if (!line.empty()) {
+					line.erase(std::remove(line.begin(), line.end(), '"'), line.end()); // Remove quotes
+					config.playlist.push_back(line);
+					// INFO("Playlist item: {}", line);
+				}
+
+				// Break if we found ']' on this line
+				if (closingBracketPos != std::string::npos) {
+					break;
+				}
+			}
 		} else if (line.find("ToggleRadioKey=") != std::string::npos) {
 			config.toggleRadioKey = hexStringToInt(line.substr(line.find('=') + 1));
 		} else if (line.find("SwitchModeKey=") != std::string::npos) {
@@ -147,7 +170,7 @@ void printConfig(const Config& config) {
     INFO("{} - RandomizeStartTime: {}", Plugin::NAME, config.randomizeStartTime);
     INFO("{} - Playlist:", Plugin::NAME);
     for (const auto& song : config.playlist) {
-        INFO("{} - {}", Plugin::NAME, song);
+        INFO("{} playlist item - {}", Plugin::NAME, song);
     }
 	INFO("{} - ToggleRadioKey: 0x{:X}", Plugin::NAME, config.toggleRadioKey);
 	INFO("{} - SwitchModeKey: 0x{:X}", Plugin::NAME, config.switchModeKey);
@@ -336,7 +359,7 @@ public:
 
 	void DecreaseVolume()
 	{
-		Volume = Volume - 5.0f;
+		Volume = Volume - 25.0f;
 		std::wstring v = to_wstring(std::format("setaudio sfradio volume to {}", (int)Volume));
 		mciSendString(v.c_str(), NULL, 0, NULL);
 
@@ -345,7 +368,7 @@ public:
 
 	void IncreaseVolume()
 	{
-		Volume = Volume + 5.0f;
+		Volume = Volume + 25.0f;
 		std::wstring v = to_wstring(std::format("setaudio sfradio volume to {}", (int)Volume));
 		mciSendString(v.c_str(), NULL, 0, NULL);
 
@@ -470,7 +493,7 @@ public:
 private:
 	int   Mode = 0;
 	int   StationIndex = 0;
-	float Volume = 100.0f;
+	float Volume = 700.0f;
 	float Seconds = 0.0f;
 	bool  RandomizeStartTime = false;
 	bool  AutoStart = true;
@@ -497,7 +520,7 @@ static DWORD MainLoop(void* unused)
     loadConfig(config); // Load configuration from file
 	
 	trimPlaylist(config.playlist);
-	printConfig(config);
+	// printConfig(config);
 
 
 	DEBUG("Loaded config, waiting for player form...");
@@ -531,7 +554,7 @@ static DWORD MainLoop(void* unused)
 		short SeekForwardKeyState = GetKeyState(config.seekForwardKey);
 		short SeekBackwardKeyState = GetKeyState(config.seekBackwardKey);
 		
-		INFO("ToggleRadioKeyState: {}\nSwitchModeKeyState: {}\nVolumeUpKeyState: {}\nVolumeDownKeyState: {}\nNextStationKeyState: {}\nPrevStationKeyState: {}\nSeekForwardKeyState: {}\nSeekBackwardKeyState: {}", ToggleRadioKeyState, SwitchModeKeyState, VolumeUpKeyState, VolumeDownKeyState, NextStationKeyState, PrevStationKeyState, SeekForwardKeyState, SeekBackwardKeyState);
+		// INFO("ToggleRadioKeyState: {}\nSwitchModeKeyState: {}\nVolumeUpKeyState: {}\nVolumeDownKeyState: {}\nNextStationKeyState: {}\nPrevStationKeyState: {}\nSeekForwardKeyState: {}\nSeekBackwardKeyState: {}", ToggleRadioKeyState, SwitchModeKeyState, VolumeUpKeyState, VolumeDownKeyState, NextStationKeyState, PrevStationKeyState, SeekForwardKeyState, SeekBackwardKeyState);
 
 		// Handle toggle logic based on key states
 		if (ToggleRadioKeyState < 0) { // Key is pressed
